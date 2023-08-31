@@ -5,7 +5,7 @@
 #define DEBUG 0
 
 // SETTINGS
-const int EXTRUDER_RPM = 30;  // rotations per minute of stepper
+const int EXTRUDER_RPM = 60;  // rotations per minute of stepper
 
 // PINS
 
@@ -29,7 +29,7 @@ const int MICROSTEP_MULTIPLIER = 8;
 // NEMA 17HS1070-C5X: 5:1
 const float GEAR_RATIO = 5;
 
-const bool STEPPER_INVERT_DIRECTION = false;
+const bool STEPPER_INVERT_DIR = false;
 
 // "Speeds of more than 1000 steps per second are unreliable." --accelstepper docs
 // But it still seems fine
@@ -57,7 +57,7 @@ const int STEPS_PER_SEC = round(rpm_to_steps_per_sec(EXTRUDER_RPM, STEP_ANGLE_DE
 
 void setup() {
   //g_stepper.setEnablePin(O_PIN_ENABLE);
-  g_stepper.setPinsInverted(/* directionInvert */ STEPPER_INVERT_DIRECTION,
+  g_stepper.setPinsInverted(/* directionInvert */ STEPPER_INVERT_DIR,
                             /* stepInvert */ false,
                             /* enableInvert */ true);
   // Set the maximum speed in steps per second:
@@ -66,7 +66,6 @@ void setup() {
   // setup robot input pin
   pinMode(DI_ROBOT_RUN_FORWARD_PIN, INPUT_PULLUP);
   pinMode(DI_ROBOT_RUN_BACKWARDS_PIN, INPUT_PULLUP);
-
 
   // led
   pinMode(LED_BUILTIN, OUTPUT);
