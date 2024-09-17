@@ -1,8 +1,11 @@
 #include <Arduino.h>
 // Install AccelStepper: Tools > Manage libraries > Search for and install "AccelStepper"
 #include <AccelStepper.h>
+#include <Controllino.h> 
 
 #define DEBUG 0
+//#define USE_STEPPER_ENABLE_PIN
+
 
 // SETTINGS
 const int EXTRUDER_RPM = 60;  // rotations per minute of stepper
@@ -10,11 +13,17 @@ const int EXTRUDER_RPM = 60;  // rotations per minute of stepper
 // PINS
 
 // Comm pins
-const int DI_ROBOT_RUN_FORWARD_PIN = 2;
-const int DI_ROBOT_RUN_BACKWARDS_PIN = 4;
+const int DI_ROBOT_RUN_BACKWARDS_PIN =
+  CONTROLLINO_SCREW_TERMINAL_DIGITAL_ADC_IN_00; // A0 PC0 23 Analog 0
+const int DI_ROBOT_RUN_FORWARD_PIN =
+  CONTROLLINO_SCREW_TERMINAL_DIGITAL_ADC_IN_01; // A1 PC1 24 Analog 1
 
-const int DO_DIR_PIN = 7;   // DIR - Direction
-const int DO_STEP_PIN = 9;  // STP/PUL - Step, Pulse
+// Stepper motor pins
+#ifdef USE_STEPPER_ENABLE_PIN
+const int DO_NC_ENABLE_PIN = CONTROLLINO_PIN_HEADER_DIGITAL_OUT_01; // D5 PD5 9 Digital 1
+#endif
+const int DO_STEP_PIN = CONTROLLINO_PIN_HEADER_DIGITAL_OUT_02; // D6 PD6 10 Digital 2
+const int DO_DIR_PIN = CONTROLLINO_PIN_HEADER_DIGITAL_OUT_03; // D7 PD7 11 Digital 3
 
 // NEMA 17HS1070-C5X: 1.8 degrees step angle
 const float STEP_ANGLE_DEGREES = 1.8;
@@ -56,7 +65,9 @@ float rpm_to_steps_per_sec(float rpm, float step_angle_degrees, float microstep_
 const int STEPS_PER_SEC = round(rpm_to_steps_per_sec(EXTRUDER_RPM, STEP_ANGLE_DEGREES, MICROSTEP_MULTIPLIER, GEAR_RATIO));
 
 void setup() {
-  //g_stepper.setEnablePin(O_PIN_ENABLE);
+  #ifdef USE_STEPPER_ENABLE_PIN
+  g_stepper.setEnablePin(DO_NC_ENABLE_PIN);
+  #endif
   g_stepper.setPinsInverted(/* directionInvert */ STEPPER_INVERT_DIR,
                             /* stepInvert */ false,
                             /* enableInvert */ true);
@@ -64,8 +75,8 @@ void setup() {
   g_stepper.setMaxSpeed(MAX_STEPS_PER_SEC);
 
   // setup robot input pin
-  pinMode(DI_ROBOT_RUN_FORWARD_PIN, INPUT_PULLUP);
   pinMode(DI_ROBOT_RUN_BACKWARDS_PIN, INPUT_PULLUP);
+  pinMode(DI_ROBOT_RUN_FORWARD_PIN, INPUT_PULLUP);
 
   // led
   pinMode(LED_BUILTIN, OUTPUT);
