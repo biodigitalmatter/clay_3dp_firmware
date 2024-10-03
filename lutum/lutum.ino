@@ -8,7 +8,7 @@
 
 
 // SETTINGS
-const int EXTRUDER_RPM = 60;  // rotations per minute of stepper
+const int EXTRUDER_RPM = 120;  // rotations per minute of stepper
 
 // PINS
 
