@@ -7,4 +7,5 @@ profiles:
       - platform: arduino:avr (1.8.3)
     libraries:
       - CONTROLLINO (3.0.9)
+      - AccelStepper (1.64)
 default_profile: controllino_mini
