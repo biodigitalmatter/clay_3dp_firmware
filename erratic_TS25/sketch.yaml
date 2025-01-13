@@ -1,0 +1,9 @@
+profiles:
+  controllino_micro:
+    fqbn: controllino_rp2:rp2040:controllino_micro
+    platforms:
+      - platform: controllino_rp2:rp2040 (2.0.0)
+        platform_index_url: https://github.com/CONTROLLINO-PLC/controllino_rp2/releases/download/global/package_controllino_rp2_index.json
+    libraries:
+     - ODriveArduino (0.10.0)
+default_profile: controllino_micro
