@@ -92,6 +92,9 @@ bool setupCan() {
 }
 void setup() {
   Serial.begin(115200);
+  // wait since Controllino Micro uses software USB not hardware USB-to-serial
+  while (!Serial);
+  Serial.println("Start");
 
   // setup robot input pins
   pinMode(DI_ROBOT_BWD_PIN, INPUT);
