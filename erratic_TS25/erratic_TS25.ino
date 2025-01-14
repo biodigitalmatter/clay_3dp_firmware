@@ -2,6 +2,7 @@
 #include <ODriveMCPCAN.hpp>
 
 #define DEBUG 1
+#define DEBUG_GInputs 1
 
 const uint32_t SPEED_SEND_INTERVAL = 10;
 
@@ -90,11 +91,13 @@ bool setupCan() {
   g_can_intf.onReceive(receiveCallback);
   return true;
 }
+
 void setup() {
   Serial.begin(115200);
   // wait since Controllino Micro uses software USB not hardware USB-to-serial
-  while (!Serial);
-  Serial.println("Start");
+  while (!Serial)
+    ;
+  Serial.println("Starting...");
 
   // setup robot input pins
   pinMode(DI_ROBOT_BWD_PIN, INPUT);
@@ -157,9 +160,25 @@ void setup() {
   Serial.println("ODrive running!");
 }
 
+#if DEBUG_GInputs == 1
+uint8_t g_debug_spd_counter_with_overflow = 0;
+uint32_t g_debug_spd_prev_millis = 0;
+const uint16_t DEBUG_SPD_INTERVAL = 100;
+
+uint8_t readSpdInputs() {
+  uint32_t debug_spd_cur_millis = millis();
+  if (debug_spd_cur_millis - g_debug_spd_prev_millis > DEBUG_SPD_INTERVAL) {
+    g_debug_spd_prev_millis = debug_spd_cur_millis;
+    // Incrementing counter with expected overflow at 255
+    g_debug_spd_counter_with_overflow++;
+  }
+  return g_debug_spd_counter_with_overflow;
+}
+#else
 uint8_t readSpdInputs() {
   return (digitalRead(DI_ROBOT_SPD0_PIN) << 0) | (digitalRead(DI_ROBOT_SPD1_PIN) << 1) | (digitalRead(DI_ROBOT_SPD2_PIN) << 2) | (digitalRead(DI_ROBOT_SPD3_PIN) << 3) | (digitalRead(DI_ROBOT_SPD4_PIN) << 4) | (digitalRead(DI_ROBOT_SPD5_PIN) << 5) | (digitalRead(DI_ROBOT_SPD6_PIN) << 6) | (digitalRead(DI_ROBOT_SPD7_PIN) << 7);
 }
+#endif  // DEBUG_GInputs
 
 uint32_t g_prev_millis = 0;
 uint32_t g_cur_millis = 0;
@@ -176,11 +195,8 @@ void loop() {
     g_spd_reading = readSpdInputs();
 
 #if DEBUG == 1
-    Serial.print("Combined value: ");
+    Serial.print("g_spdReading:");
     Serial.print(g_spd_reading);
-    Serial.print(",");
-    // also print as binary
-    Serial.println(g_spd_reading, BIN);
 #endif  // DEBUG
 
     if (g_spd_reading < 1) {
@@ -194,6 +210,7 @@ void loop() {
     if (g_odrv0_user_data.received_feedback) {
       Get_Encoder_Estimates_msg_t feedback = g_odrv0_user_data.last_feedback;
       g_odrv0_user_data.received_feedback = false;
+      Serial.print(",");
       Serial.print("g_odrv0-vel:");
       Serial.println(feedback.Vel_Estimate);
     }
