@@ -1,7 +1,7 @@
 #include <Arduino.h>
 // Install AccelStepper: Tools > Manage libraries > Search for and install "AccelStepper"
 #include <AccelStepper.h>
-#include <Controllino.h> 
+#include <Controllino.h>
 
 #define DEBUG 0
 //#define USE_STEPPER_ENABLE_PIN
@@ -14,16 +14,16 @@ const int EXTRUDER_RPM = 120;  // rotations per minute of stepper
 
 // Comm pins
 const int DI_ROBOT_RUN_BACKWARDS_PIN =
-  CONTROLLINO_SCREW_TERMINAL_DIGITAL_ADC_IN_00; // A0 PC0 23 Analog 0
+  CONTROLLINO_SCREW_TERMINAL_DIGITAL_ADC_IN_00;  // A0 PC0 23 Analog 0
 const int DI_ROBOT_RUN_FORWARD_PIN =
-  CONTROLLINO_SCREW_TERMINAL_DIGITAL_ADC_IN_01; // A1 PC1 24 Analog 1
+  CONTROLLINO_SCREW_TERMINAL_DIGITAL_ADC_IN_01;  // A1 PC1 24 Analog 1
 
 // Stepper motor pins
 #ifdef USE_STEPPER_ENABLE_PIN
-const int DO_NC_ENABLE_PIN = CONTROLLINO_PIN_HEADER_DIGITAL_OUT_01; // D5 PD5 9 Digital 1
+const int DO_NC_ENABLE_PIN = CONTROLLINO_PIN_HEADER_DIGITAL_OUT_01;  // D5 PD5 9 Digital 1
 #endif
-const int DO_STEP_PIN = CONTROLLINO_PIN_HEADER_DIGITAL_OUT_02; // D6 PD6 10 Digital 2
-const int DO_DIR_PIN = CONTROLLINO_PIN_HEADER_DIGITAL_OUT_03; // D7 PD7 11 Digital 3
+const int DO_STEP_PIN = CONTROLLINO_PIN_HEADER_DIGITAL_OUT_02;  // D6 PD6 10 Digital 2
+const int DO_DIR_PIN = CONTROLLINO_PIN_HEADER_DIGITAL_OUT_03;   // D7 PD7 11 Digital 3
 
 // NEMA 17HS1070-C5X: 1.8 degrees step angle
 const float STEP_ANGLE_DEGREES = 1.8;
@@ -65,9 +65,9 @@ float rpm_to_steps_per_sec(float rpm, float step_angle_degrees, float microstep_
 const int STEPS_PER_SEC = round(rpm_to_steps_per_sec(EXTRUDER_RPM, STEP_ANGLE_DEGREES, MICROSTEP_MULTIPLIER, GEAR_RATIO));
 
 void setup() {
-  #ifdef USE_STEPPER_ENABLE_PIN
+#ifdef USE_STEPPER_ENABLE_PIN
   g_stepper.setEnablePin(DO_NC_ENABLE_PIN);
-  #endif
+#endif
   g_stepper.setPinsInverted(/* directionInvert */ STEPPER_INVERT_DIR,
                             /* stepInvert */ false,
                             /* enableInvert */ true);

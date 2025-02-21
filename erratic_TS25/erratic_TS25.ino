@@ -2,7 +2,7 @@
 #include <ODriveMCPCAN.hpp>
 
 #define DEBUG 1
-#define DEBUG_GInputs 1
+#define DEBUG_GInputs 0
 
 const uint32_t SPEED_SEND_INTERVAL = 10;
 
@@ -31,8 +31,7 @@ MCP2515Class& g_can_intf = CAN;
 
 void printAndHalt(const char* message) {
   Serial.println(message);
-  while (true)
-    ;  // Infinite loop
+  while (true);  // Infinite loop
 }
 
 // Instantiate ODrive objects
@@ -95,8 +94,7 @@ bool setupCan() {
 void setup() {
   Serial.begin(115200);
   // wait since Controllino Micro uses software USB not hardware USB-to-serial
-  while (!Serial)
-    ;
+  while (!Serial);
   Serial.println("Starting...");
 
   // setup robot input pins
