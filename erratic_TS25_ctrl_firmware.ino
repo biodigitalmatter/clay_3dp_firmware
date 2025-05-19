@@ -1,15 +1,14 @@
 #include <Arduino.h>
 #include <ODriveMCPCAN.hpp>
 
-#define DEBUG 1
+//#define DEBUG 1
 #define DEBUG_GInputs 0
 
 const uint32_t SPEED_SEND_INTERVAL = 10;
 
-const float_t EXTRUSION_SPD_RPS_MIN = 0.0;
+const float_t EXTRUSION_SPD_RPS_MIN = -30.0;
 const float_t EXTRUSION_SPD_RPS_MAX = 30.0;
 
-const pin_size_t DI_ROBOT_BWD_PIN = CONTROLLINO_MICRO_AI1;
 const pin_size_t DI_ROBOT_SPD0_PIN = CONTROLLINO_MICRO_AI2;
 const pin_size_t DI_ROBOT_SPD1_PIN = CONTROLLINO_MICRO_AI3;
 const pin_size_t DI_ROBOT_SPD2_PIN = CONTROLLINO_MICRO_AI4;
@@ -18,6 +17,27 @@ const pin_size_t DI_ROBOT_SPD4_PIN = CONTROLLINO_MICRO_DI0;
 const pin_size_t DI_ROBOT_SPD5_PIN = CONTROLLINO_MICRO_DI1;
 const pin_size_t DI_ROBOT_SPD6_PIN = CONTROLLINO_MICRO_DI2;
 const pin_size_t DI_ROBOT_SPD7_PIN = CONTROLLINO_MICRO_DI3;
+
+const uint8_t NUM_SPD_BITS = 8;
+
+pin_size_t ROBOT_SPD_PINS[] = {
+  DI_ROBOT_SPD0_PIN,
+  DI_ROBOT_SPD1_PIN,
+  DI_ROBOT_SPD2_PIN,
+  DI_ROBOT_SPD3_PIN,
+  DI_ROBOT_SPD4_PIN,
+  DI_ROBOT_SPD5_PIN,
+  DI_ROBOT_SPD6_PIN,
+  DI_ROBOT_SPD7_PIN,
+};
+
+
+// this is default on the controllino but I'm setting it just to be sure
+const uint8_t AI_RESOLUTION = 23;
+
+// Calculate threshold value for 7V in a 0-24V range with 23-bit resolution
+// 7V comes from spec from ABB, I think
+const uint32_t AI_DIGITAL_THRESHOLD = (7.0 / 24.0) * ((1UL << AI_RESOLUTION) - 1);
 
 // CAN bus baudrate. Make sure this matches for every device on the bus
 const uint32_t CAN_BAUDRATE = 125000;
@@ -28,10 +48,11 @@ const uint32_t ODRV0_NODE_ID = 0;
 // vendored/modified from controllino_rp2\hardware\rp2040
 MCP2515Class& g_can_intf = CAN;
 
-
 void printAndHalt(const char* message) {
+#ifdef DEBUG
   Serial.println(message);
-  while (true);  // Infinite loop
+#endif
+  while (true);
 }
 
 // Instantiate ODrive objects
@@ -92,52 +113,60 @@ bool setupCan() {
 }
 
 void setup() {
+#ifdef DEBUG
   Serial.begin(115200);
-  // wait since Controllino Micro uses software USB not hardware USB-to-serial
+
+  // wait since Controllino Micro uses software USB not hardware USB-to-serial */
   while (!Serial);
   Serial.println("Starting...");
+#endif
 
-  // setup robot input pins
-  pinMode(DI_ROBOT_BWD_PIN, INPUT);
-  pinMode(DI_ROBOT_SPD0_PIN, INPUT);
-  pinMode(DI_ROBOT_SPD1_PIN, INPUT);
-  pinMode(DI_ROBOT_SPD2_PIN, INPUT);
-  pinMode(DI_ROBOT_SPD3_PIN, INPUT);
-  pinMode(DI_ROBOT_SPD4_PIN, INPUT);
-  pinMode(DI_ROBOT_SPD5_PIN, INPUT);
-  pinMode(DI_ROBOT_SPD6_PIN, INPUT);
-  pinMode(DI_ROBOT_SPD7_PIN, INPUT);
+  delay(200);
+
+  analogReadResolution(AI_RESOLUTION);
+
+  // setup robot spd input pins
+  for (pin_size_t pin : ROBOT_SPD_PINS) {
+    setDigitalThreshold(pin, AI_DIGITAL_THRESHOLD);  // noop for digital inputs
+    pinMode(pin, INPUT);
+  }
 
   // Register callbacks for the heartbeat and encoder feedback messages
   g_odrv0.onFeedback(onFeedback, &g_odrv0_user_data);
   g_odrv0.onStatus(onHeartbeat, &g_odrv0_user_data);
 
-  if (!setupCan()) {
-    printAndHalt("CAN failed to initialize: reset required");
-  }
+  if (!setupCan()) printAndHalt("CAN failed to initialize: reset required");
 
+#ifdef DEBUG
   Serial.println("Waiting for ODrive...");
+#endif
   while (!g_odrv0_user_data.received_heartbeat) {
     pumpEvents(g_can_intf);
     delay(100);
   }
 
+#ifdef DEBUG
   Serial.println("found ODrive");
 
   // request bus voltage and current (1sec timeout)
   Serial.println("attempting to read bus voltage and current");
+#endif
+
   Get_Bus_Voltage_Current_msg_t vbus;
 
-  if (!g_odrv0.request(vbus, 1)) {
+  if (!g_odrv0.getBusVI(vbus, 1000)) {
     printAndHalt("vbus request failed!");
   }
 
+#ifdef DEBUG
   Serial.print("DC voltage [V]: ");
   Serial.println(vbus.Bus_Voltage);
   Serial.print("DC current [A]: ");
   Serial.println(vbus.Bus_Current);
 
   Serial.println("Enabling closed loop control...");
+#endif
+
   while (g_odrv0_user_data.last_heartbeat.Axis_State != ODriveAxisState::AXIS_STATE_CLOSED_LOOP_CONTROL) {
     g_odrv0.clearErrors();
     delay(1);
@@ -155,7 +184,9 @@ void setup() {
       pumpEvents(g_can_intf);
     }
   }
+#ifdef DEBUG
   Serial.println("ODrive running!");
+#endif
 }
 
 #if DEBUG_GInputs == 1
@@ -174,9 +205,20 @@ uint8_t readSpdInputs() {
 }
 #else
 uint8_t readSpdInputs() {
-  return (digitalRead(DI_ROBOT_SPD0_PIN) << 0) | (digitalRead(DI_ROBOT_SPD1_PIN) << 1) | (digitalRead(DI_ROBOT_SPD2_PIN) << 2) | (digitalRead(DI_ROBOT_SPD3_PIN) << 3) | (digitalRead(DI_ROBOT_SPD4_PIN) << 4) | (digitalRead(DI_ROBOT_SPD5_PIN) << 5) | (digitalRead(DI_ROBOT_SPD6_PIN) << 6) | (digitalRead(DI_ROBOT_SPD7_PIN) << 7);
+  uint8_t rawValue = 0;
+
+  for (int i = 0; i < NUM_SPD_BITS; i++) {
+    rawValue |= (digitalRead(ROBOT_SPD_PINS[i]) << i);
+  }
+  return rawValue;
 }
-#endif  // DEBUG_GInputs
+#endif
+
+int8_t readSignedSpdInputs() {
+  // Convert to signed int8_t
+  // Values 128-255 will become -128 to -1
+  return (int8_t)readSpdInputs();
+}
 
 uint32_t g_prev_millis = 0;
 uint32_t g_cur_millis = 0;
@@ -190,28 +232,27 @@ void loop() {
   if (g_cur_millis - g_prev_millis >= SPEED_SEND_INTERVAL) {
     g_prev_millis = g_cur_millis;
 
-    g_spd_reading = readSpdInputs();
+    g_spd_reading = readSignedSpdInputs();
 
-#if DEBUG == 1
+
+    g_odrv0.setVelocity(map(g_spd_reading,
+                            -127,
+                            127,
+                            EXTRUSION_SPD_RPS_MIN, EXTRUSION_SPD_RPS_MAX));
+
+#ifdef DEBUG
     Serial.print("g_spdReading:");
     Serial.print(g_spd_reading);
-#endif  // DEBUG
-
-    if (g_spd_reading < 1) {
-      g_odrv0.setVelocity(0);
-    } else {
-      g_odrv0.setVelocity(map(g_spd_reading, 1, 255, EXTRUSION_SPD_RPS_MIN, EXTRUSION_SPD_RPS_MAX));
-    }
-
-#if DEBUG == 1
-    // print position and velocity for Serial Plotter
+    Serial.print(",");
+    Serial.print("g_odrv0-vel:");
     if (g_odrv0_user_data.received_feedback) {
       Get_Encoder_Estimates_msg_t feedback = g_odrv0_user_data.last_feedback;
       g_odrv0_user_data.received_feedback = false;
-      Serial.print(",");
-      Serial.print("g_odrv0-vel:");
+
       Serial.println(feedback.Vel_Estimate);
+    } else {
+      Serial.println("ERROR");
     }
-#endif  // DEBUG
+#endif
   }
 }

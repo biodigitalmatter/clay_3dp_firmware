@@ -87,9 +87,10 @@
             };
           devShells.default = pkgs.mkShell {
             inputsFrom = [ config.treefmt.build.devShell ];
-            packages = [
+            packages = with pkgs; [
               self'.packages.arduino-cli
-              pkgs.picotool
+              arduino-language-server
+              picotool
             ];
           };
           treefmt.programs = {
