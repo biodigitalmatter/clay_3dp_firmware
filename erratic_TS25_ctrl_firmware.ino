@@ -4,6 +4,24 @@
 //#define DEBUG 1
 #define DEBUG_GInputs 0
 
+#ifdef DEBUG
+#define DEBUG_PRINT(value) \
+  do { Serial.print(value); } while (0)
+#define DEBUG_PLOT(label, value) \
+  do { \
+    Serial.print(label); \
+    Serial.print(":"); \
+    Serial.print(value); \
+    Serial.print(","); \
+  } while (0)
+#define DEBUG_PRINTLN(value) \
+  do { Serial.println(value); } while (0)
+#else
+#define DEBUG_PRINT(value) ((void)0)
+#define DEBUG_PLOT(label, value) ((void)0)
+#define DEBUG_PRINTLN(value) ((void)0)
+#endif  // DEBUG
+
 const uint32_t SPEED_SEND_INTERVAL = 10;
 
 const float_t EXTRUSION_SPD_RPS_MIN = -30.0;
@@ -47,13 +65,6 @@ const uint32_t ODRV0_NODE_ID = 0;
 
 // vendored/modified from controllino_rp2\hardware\rp2040
 MCP2515Class& g_can_intf = CAN;
-
-void printAndHalt(const char* message) {
-#ifdef DEBUG
-  Serial.println(message);
-#endif
-  while (true);
-}
 
 // Instantiate ODrive objects
 ODriveCAN g_odrv0(wrap_can_intf(g_can_intf), ODRV0_NODE_ID);  // Standard CAN message ID
@@ -112,16 +123,22 @@ bool setupCan() {
   return true;
 }
 
+void printAndHalt(const char* message) {
+  DEBUG_PRINTLN(message);
+  while (true);
+}
+
 void setup() {
 #ifdef DEBUG
   Serial.begin(115200);
 
-  // wait since Controllino Micro uses software USB not hardware USB-to-serial */
-  while (!Serial);
-  Serial.println("Starting...");
+  // wait since Controllino Micro uses software USB not hardware USB-to-serial
+  uint16_t countdown = 3000;
+  while (!Serial && countdown--) {
+    delay(1000);
+  }
 #endif
-
-  delay(200);
+  DEBUG_PRINTLN(F("Starting..."));
 
   analogReadResolution(AI_RESOLUTION);
 
@@ -137,20 +154,16 @@ void setup() {
 
   if (!setupCan()) printAndHalt("CAN failed to initialize: reset required");
 
-#ifdef DEBUG
-  Serial.println("Waiting for ODrive...");
-#endif
+  DEBUG_PRINTLN(F("Waiting for ODrive..."));
   while (!g_odrv0_user_data.received_heartbeat) {
     pumpEvents(g_can_intf);
     delay(100);
   }
 
-#ifdef DEBUG
-  Serial.println("found ODrive");
+  DEBUG_PRINTLN(F("Found ODrive!"));
 
   // request bus voltage and current (1sec timeout)
-  Serial.println("attempting to read bus voltage and current");
-#endif
+  DEBUG_PRINTLN(F("Attempting to read bus voltage and current.."));
 
   Get_Bus_Voltage_Current_msg_t vbus;
 
@@ -158,14 +171,11 @@ void setup() {
     printAndHalt("vbus request failed!");
   }
 
-#ifdef DEBUG
-  Serial.print("DC voltage [V]: ");
-  Serial.println(vbus.Bus_Voltage);
-  Serial.print("DC current [A]: ");
-  Serial.println(vbus.Bus_Current);
-
-  Serial.println("Enabling closed loop control...");
-#endif
+  DEBUG_PRINT(F("DC voltage [V]: "));
+  DEBUG_PRINTLN(vbus.Bus_Voltage);
+  DEBUG_PRINT(F("DC current [A]: "));
+  DEBUG_PRINTLN(vbus.Bus_Current);
+  DEBUG_PRINTLN("Enabling closed loop control...");
 
   while (g_odrv0_user_data.last_heartbeat.Axis_State != ODriveAxisState::AXIS_STATE_CLOSED_LOOP_CONTROL) {
     g_odrv0.clearErrors();
@@ -184,9 +194,7 @@ void setup() {
       pumpEvents(g_can_intf);
     }
   }
-#ifdef DEBUG
-  Serial.println("ODrive running!");
-#endif
+  DEBUG_PRINTLN(F("ODrive running!"));
 }
 
 #if DEBUG_GInputs == 1
@@ -240,19 +248,15 @@ void loop() {
                             127,
                             EXTRUSION_SPD_RPS_MIN, EXTRUSION_SPD_RPS_MAX));
 
-#ifdef DEBUG
-    Serial.print("g_spdReading:");
-    Serial.print(g_spd_reading);
-    Serial.print(",");
-    Serial.print("g_odrv0-vel:");
     if (g_odrv0_user_data.received_feedback) {
       Get_Encoder_Estimates_msg_t feedback = g_odrv0_user_data.last_feedback;
       g_odrv0_user_data.received_feedback = false;
 
-      Serial.println(feedback.Vel_Estimate);
-    } else {
-      Serial.println("ERROR");
+      char buffer[8];
+      dtostrf(feedback.Vel_Estimate, 6, 2, buffer);
+
+      DEBUG_PLOT("odrv0_vel", buffer);
     }
-#endif
+    DEBUG_PRINTLN();  // new line for plotter
   }
 }
