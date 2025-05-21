@@ -24,7 +24,7 @@
 
 const uint32_t SPEED_SEND_INTERVAL = 10;
 
-const float_t EXTRUSION_SPD_RPS_MIN = -30.0;
+// absolute value
 const float_t EXTRUSION_SPD_RPS_MAX = 30.0;
 
 const pin_size_t DI_ROBOT_SPD0_PIN = CONTROLLINO_MICRO_AI2;
@@ -220,14 +220,21 @@ uint8_t readSpdInputs() {
 #endif
 
 int8_t readSignedSpdInputs() {
+  const uint8_t unsigned_value = readSpdInputs();
+
+  DEBUG_PLOT("before_cast", unsigned_value);
+
   // Convert to signed int8_t
   // Values 128-255 will become -128 to -1
-  return (int8_t)readSpdInputs();
+  const int8_t signed_value = (int8_t)unsigned_value;
+
+  DEBUG_PLOT("after_cast", signed_value);
+
+  return signed_value;
 }
 
 uint32_t g_prev_millis = 0;
 uint32_t g_cur_millis = 0;
-uint8_t g_spd_reading = 0;
 
 void loop() {
   pumpEvents(g_can_intf);  // This is required on some platforms to handle incoming feedback CAN messages
@@ -237,13 +244,11 @@ void loop() {
   if (cur_millis - g_prev_millis >= SPEED_SEND_INTERVAL) {
     g_prev_millis = cur_millis;
 
-    g_spd_reading = readSignedSpdInputs();
+    const float_t mapped_spd_reading = (float_t)readSignedSpdInputs() * EXTRUSION_SPD_RPS_MAX / 127.0f;
 
+    DEBUG_PLOT("mapped_spd", mapped_spd_reading);
 
-    g_odrv0.setVelocity(map(g_spd_reading,
-                            -127,
-                            127,
-                            EXTRUSION_SPD_RPS_MIN, EXTRUSION_SPD_RPS_MAX));
+    g_odrv0.setVelocity(mapped_spd_reading);
 
     if (g_odrv0_user_data.received_feedback) {
       Get_Encoder_Estimates_msg_t feedback = g_odrv0_user_data.last_feedback;
