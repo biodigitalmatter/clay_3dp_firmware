@@ -68,7 +68,6 @@ MCP2515Class& g_can_intf = CAN;
 
 // Instantiate ODrive objects
 ODriveCAN g_odrv0(wrap_can_intf(g_can_intf), ODRV0_NODE_ID);  // Standard CAN message ID
-ODriveCAN* g_odrives[] = { &g_odrv0 };                        // Make sure all ODriveCAN instances are accounted for here
 
 struct ODriveUserData {
   Heartbeat_msg_t last_heartbeat;
@@ -105,9 +104,7 @@ void onFeedback(Get_Encoder_Estimates_msg_t& msg, void* user_data) {
 
 // Called for every message that arrives on the CAN bus
 void onCanMessage(const CanMsg& msg) {
-  for (auto odrive : g_odrives) {
-    onReceive(msg, *odrive);
-  }
+  onReceive(msg, g_odrv0);
 }
 
 bool setupCan() {
@@ -235,10 +232,10 @@ uint8_t g_spd_reading = 0;
 void loop() {
   pumpEvents(g_can_intf);  // This is required on some platforms to handle incoming feedback CAN messages
 
-  g_cur_millis = millis();
+  const uint32_t cur_millis = millis();
 
-  if (g_cur_millis - g_prev_millis >= SPEED_SEND_INTERVAL) {
-    g_prev_millis = g_cur_millis;
+  if (cur_millis - g_prev_millis >= SPEED_SEND_INTERVAL) {
+    g_prev_millis = cur_millis;
 
     g_spd_reading = readSignedSpdInputs();
 
